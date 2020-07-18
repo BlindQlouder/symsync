@@ -1,6 +1,6 @@
 # Introduction
 
-This repository contains the program symsync. It synchronizes folders on different machines over an untrusted server. For example, those could be two computers at work and at home being synchronized over google drive. 
+This repository contains the program symsync. It synchronizes folders on different machines over an untrusted server. For example two computers at work and at home being synchronized over google drive. 
 
 The encryption is symmetric, using aes_256_cbc from the openssl crate. The key needs to be copied manually onto every computer that you want to sync. 
 
