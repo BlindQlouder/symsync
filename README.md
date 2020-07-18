@@ -1,14 +1,13 @@
 # Introduction
 
-This repository contains the program symsync, written in Rust. It synchronizes folders on different machines over an untrusted server. The main point of this program is the use of symmetric encryption as opposed to public-private schemes used by PGP, owncloud, git, ....
+This repository contains the program symsync. It synchronizes folders on different machines over an untrusted server. For example, those could be two computers at work and at home being synchronized over google drive. 
 
-Why using symmetric encryption? Just in case there will be quantum computers in the future. Current public-key encryption (like RSA, Diffie-Hellmann, Elliptic Curves) will be decryptable then. In that case, everybody who stores the traffic of today will likely read your files in the future. We are talking about the big players like google and the NSA.
+The encryption is symmetric, using aes_256_cbc from the openssl crate. The key needs to be copied manually onto every computer that you want to sync. 
 
-The disadvantage of a symmetric scheme is that you cannot have a public key on some server that allows anybody (including you) to encrypt messages for you. A symmetric key must be preshared! For example, you can put it on a USB stick and copy it manually to all your computers. Note that this makes certain types of attacks more easy. If you are trying to protect your data from your wife or your boss, this might not be the right choice for you. However, it is perfectly fine against non-personalized attacks.
+Why use a preshared key instead of a public-key-based scheme? First: it's easier. Second: it is safe against the unlikely event that powerful quantum computers become available in the future. The public-key-exchange schemes like RSA, Diffie-Hellmann or elliptic curves will all become breakable in this scenario. Then, the big guys like google and the NSA will be able to read all the files you send over  the internet today. Isn't this reason enough to justify the unconvenience of manually putting a key onto a USB stick and carrying it to all your computers? Of course it is. 
 
-How? We just use aes_256_cbc from the openssl crate. That should be safe against all quantum computers.
 
-Outline of the scheme: On every machine there are two folders, remote and local. The remote folder contains the encrypted and signed files that can be copied to the untrusted server. The names of the files are hashed and their sizes are masked by a random amount of bytes. All information about the files are stored in an encrypted image-file, such that we only update files that have changed. The local folder contains the unencrypted files on which you work normally. Ones you are done you run `symsync update`.
+So, here is the outline of the scheme: On every machine there are two folders, remote and local. The remote folder contains the encrypted and signed files that can be copied to the untrusted server. The names of the files are hashed and their sizes are masked by a random amount of bytes. All information about the files are stored in an encrypted image-file, such that we only update files that have changed. The local folder contains the unencrypted files on which you work normally. Ones you are done you run `symsync update`.
 
 # Status of the code
 I have been using this version for a while now. However, it is the first working version and there is little error handling. So no guarantee for your files. Please make a backup regularly. I am running it on Linux and have not attempted to run it on any other system.  Also, it is one of my first rust projects... 

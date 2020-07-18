@@ -1,23 +1,4 @@
-//! Symmetric Synchronization of folders on different machines over an untrusted server. The main
-//! point of this library is the use of **symmetric encryption** as opposed to public-private schemes used by PGP, owncloud,
-//! git, .... 
-//!
-//!
-//! Why? Just in case there will be quantum computers in the future. Current public-key
-//! encryption (like RSA, Diffie-Hellmann, Elliptic Curves) will be decryptable then.  In that
-//! case, everybody who stores the traffic of today will likely 
-//! read your files in the future. We are talking about the big players like google and the 
-//! NSA. 
-//!
-//! The disadvantage of a symmetric scheme is that you cannot have a
-//! public key on some server that allows anybody (including you) to encrypt messages for you. A
-//! symmetric key must be preshared! For example, you can put it on a USB stick and copy it manually
-//! to all your computers. Note that this makes certain types of attacks more easy. If you are trying 
-//! to protect your data from your wife or your boss, this might not be the right choice for your. 
-//! However, it is perfectelly fine agains non-personalized attacks. 
-//! 
-//! How? We just use aes_256_cbc from the openssl crate. That should be safe against all quantum
-//! computers in the future.
+//! Symmetric Synchronization of folders on different machines over an untrusted server. 
 //!
 //! On every machine there are two folders, `remote` and `local`. The `remote` folder contains the
 //! encrypted and signed files that can be copied to the untrusted server. The names of the files are hashed
