@@ -1,0 +1,12 @@
+# This is the config file. Please update the key and the path. 
+
+# 256 bit key in hexadecimal encoding (two character are one byte). On linux you could generate one with 'openssl rand -hex 32'
+key_hex = "12a6c2b20f32bfe22ad6f32a173ec0faf3773f4320c6a13da7c5a9a9f4a09144"
+
+# gpath is the folder which will be synced with the remote server (e.g. google drive) using command_push and command_pull
+gpath = "/home/yourname/gdrive/notes" 		
+command_push = "drive push"
+command_pull = "drive pull"
+
+# should there be some conflict with the syncing and you want to skip the pull, you can always pull with a command that does nothing, like
+#command_pull = "echo 'fake pull'"
