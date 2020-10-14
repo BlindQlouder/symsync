@@ -24,6 +24,7 @@ use std::hash::{Hash, Hasher};
 use std::fmt;
 use std::convert::TryFrom;
 use std::process::Command;
+use std::ffi::{OsString, OsStr};
 
 use std::time::{UNIX_EPOCH, SystemTime};
 
@@ -439,12 +440,26 @@ impl Jambon {
 						if modtime > modtime_l { 
 							// file has been locally modified since the last pull or push
 							if modtime_la < modtime_ra {
-								let s = format!("problem with {:?}: file was updated both locally and remotely", fname);
-								return Err(s.into());
+								println!("problem with {:?}: file was updated both locally and remotely", fname);
+                                let mut fname_osstr = fname.as_os_str().to_os_string();
+                                let mut fname_mod = Path::new(&fname_osstr.push("_local_backup"));
+							    fs::rename(&fname, &fname_mod)?;
+							    println!("action2 (decrypt, save, update image entry {:?}", &fname);
+							    Self::decrypt_save_add(
+							    	self.image_l.as_mut().unwrap(),
+							    	&self.image_r.as_ref().unwrap().filesystem[idx_r],
+							    	&self.gpath,
+							    	&self.key,
+							    	&self.image_r.as_ref().unwrap().siphashkey)?;
+							    self.did_something = true;
+								println!("file {:?} was pulled and the local file backed up as{:?}", &fname, &fname_mod);
+								println!("plsease manually merge the two files!");
 							}
-							println!("action1 (encrypt, save, update image entry) {:?}", &fname);
-							self.encrypt_save_add(	&fname)?;
-							self.did_something = true;
+                            else {
+							    println!("action1 (encrypt, save, update image entry) {:?}", &fname);
+							    self.encrypt_save_add(&fname)?;
+							    self.did_something = true;
+                            }
 						}
 						else if modtime_la < modtime_ra {
 							println!("action2 (decrypt, save, update image entry {:?}", &fname);
