@@ -441,10 +441,10 @@ impl Jambon {
 							// file has been locally modified since the last pull or push
 							if modtime_la < modtime_ra {
 								println!("problem with {:?}: file was updated both locally and remotely", fname);
-                                let mut fname_osstr = fname.as_os_str().to_os_string();
-                                let mut fname_mod = Path::new(&fname_osstr.push("_local_backup"));
-							    fs::rename(&fname, &fname_mod)?;
-							    println!("action2 (decrypt, save, update image entry {:?}", &fname);
+                                let mut fname_backup = OsString::from(fname);
+                                fname_backup.push("_local_backup");
+							    fs::rename(&fname, &fname_backup)?;
+							    //println!("action2 (decrypt, save, update image entry {:?}", &fname);
 							    Self::decrypt_save_add(
 							    	self.image_l.as_mut().unwrap(),
 							    	&self.image_r.as_ref().unwrap().filesystem[idx_r],
@@ -452,8 +452,8 @@ impl Jambon {
 							    	&self.key,
 							    	&self.image_r.as_ref().unwrap().siphashkey)?;
 							    self.did_something = true;
-								println!("file {:?} was pulled and the local file backed up as{:?}", &fname, &fname_mod);
-								println!("plsease manually merge the two files!");
+								println!("file {:?} was pulled and the local file backed up as {:?}", &fname, &fname_backup);
+								println!("please manually merge the two files and run update again!");
 							}
                             else {
 							    println!("action1 (encrypt, save, update image entry) {:?}", &fname);
@@ -855,6 +855,15 @@ mod tests {
     fn hello(){
         //let a = vec!(1,2,3,4);
         assert_eq!(2,2);
+    }
+
+    #[test]
+    fn append_string_to_path(){
+        let p = Path::new("test.txt");
+        let mut p_copy = OsString::from(p);
+        p_copy.push("_backup");
+        assert_eq!(p_copy, OsString::from("test.txt_backup"));
+        //assert_eq!(p_copy.push(OsStr::new("x")), OsStr::new("test.txtx"));
     }
 }
 
