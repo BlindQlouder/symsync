@@ -19,17 +19,18 @@ use std::fs::{self, File};
 use std::env;
 use std::path::{Path, PathBuf};
 use std::io::{self, Read, Write};
-use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
 use std::fmt;
 use std::convert::TryFrom;
 use std::process::Command;
-use std::ffi::{OsString, OsStr};
+use std::ffi::{OsString};
 
 use std::time::{UNIX_EPOCH, SystemTime};
 
 use openssl::symm::{encrypt, decrypt, Cipher};
 use openssl::rand::rand_bytes;
+
+use siphasher::sip::SipHasher;
 
 //use sha3::{Sha3_256, Digest};
 
@@ -149,7 +150,7 @@ struct Metadata {
 #[derive(Serialize, Deserialize, Debug)]
 struct Image {
 	last_update: u64, 					// time of last sync
-	siphashkey: [u8; 32],				// key used for the namehash
+	siphashkey: (u64, u64),				// key used for the namehash
 	filesystem: Vec<Metadata>,
 }
 
@@ -170,7 +171,7 @@ impl Image {
 		let image = Image {
 			filesystem: Vec::new(),
 			last_update: 0,
-			siphashkey: gen_key(),
+			siphashkey: gen_sipkey(),
 		};
 		image
 	}
@@ -235,7 +236,7 @@ impl Image {
 
 	/// change the siphashkey. This is in case there is a conflict between the remote and local siphashkey. 
 	/// This happens after blindpush because a new siphashkey gets generated.
-	fn update_siphashkey(&mut self, skey: &Key) {
+	fn update_siphashkey(&mut self, skey: &(u64, u64)) {
 		self.siphashkey = skey.clone();
 		for mut metadata in &mut self.filesystem {
 			metadata.namehash = format!("{:x}", calc_signature_sip(&metadata.name, &self.siphashkey));
@@ -588,7 +589,7 @@ impl Jambon {
 		metadata: &Metadata, 
 		gpath: &Path, 
 		key: &Key,
-		siphashkey: &Key) -> Result<()> {
+		siphashkey: &(u64, u64)) -> Result<()> {
 		
 		let mut path = PathBuf::from(&gpath);
 		path.push(&metadata.namehash);
@@ -743,6 +744,16 @@ fn gen_iv() -> Iv {
 	buf
 }
 
+/// generate two keys for siphash 
+fn gen_sipkey() -> (u64, u64) {
+	let mut buf = [0; 8];
+	rand_bytes(&mut buf).unwrap();
+    let k1 = u64::from_be_bytes(buf);
+	rand_bytes(&mut buf).unwrap();
+    let k2 = u64::from_be_bytes(buf);
+	(k1, k2)
+}
+
 /// generate a Key (to be used as siphashkey)
 fn gen_key() -> Key {
 	let mut buf: Key = [0; L_KEY];
@@ -802,18 +813,17 @@ fn my_decrypt(ciphertext: &[u8], key: &Key, iv: &Iv) -> Result<Vec<u8>> {
 // 	result
 // }
 
-fn calc_signature_sip<T: Hash>(message: &T, key: &Key) -> u64 {
-	let mut s = DefaultHasher::new();
+fn calc_signature_sip<T: Hash>(message: &T, siphashkey: &(u64, u64)) -> u64 {
+	let mut s = SipHasher::new_with_keys(siphashkey.0, siphashkey.1);
 	&message.hash(&mut s);
-	&key.hash(&mut s);
 	s.finish()
 }
 
 
 /// calculate the signature of message and compare with given signature
-/// Throw an SigError if they do not match.
-fn check_signature(signature: &str, message: &Vec<u8>, siphashkey: &Key) -> Result<()> {
-	let s = format!("{:x}", calc_signature_sip(&message, &siphashkey));
+/// Throw a SigError if they do not match.
+fn check_signature(signature: &str, message: &Vec<u8>, siphashkey: &(u64, u64)) -> Result<()> {
+	let s = format!("{:x}", calc_signature_sip(&message, siphashkey));
 	if signature == s {Ok(())}
 	else {Err(SigError.into())}
 }
@@ -854,8 +864,10 @@ mod tests {
 
     fn hello(){
         //let a = vec!(1,2,3,4);
+        println!("hallo world");
         assert_eq!(2,2);
     }
+
 
     #[test]
     fn append_string_to_path(){
