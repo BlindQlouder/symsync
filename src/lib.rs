@@ -754,12 +754,6 @@ fn gen_sipkey() -> (u64, u64) {
 	(k1, k2)
 }
 
-/// generate a Key (to be used as siphashkey)
-fn gen_key() -> Key {
-	let mut buf: Key = [0; L_KEY];
-	rand_bytes(&mut buf).unwrap();
-	buf
-}
 
 fn gen_obfuscation() -> Vec<u8>{
     let exp = Exp::new(0.005).unwrap();
