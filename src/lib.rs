@@ -34,6 +34,7 @@ use siphasher::sip::SipHasher;
 
 //use sha3::{Sha3_256, Digest};
 
+use serde_json;
 use toml;
 use serde::{Serialize, Deserialize};
 use serde;
@@ -49,7 +50,7 @@ type Key = [u8; L_KEY];
 type Iv = [u8; L_IV];
 
 static FOLDER_SYNC: &str = ".sync";
-static IMAGE_LOCAL: &str = "image.toml";
+static IMAGE_LOCAL: &str = "image.json";
 static IMAGE_REMOTE: &str = "image";
 
 pub type Result<T> = std::result::Result<T, Box<dyn std::error::Error>>;
@@ -182,7 +183,7 @@ impl Image {
 		let mut f = myopen(&path)?;
 		let mut string = String::new();
 		f.read_to_string(&mut string)?;
-		let image: Image = toml::from_str(&string)?;
+		let image: Image = serde_json::from_str(&string)?;
 		Ok(image)
 	}
 	/// load Image from toml in encrypted format. 
@@ -196,10 +197,10 @@ impl Image {
 		let iv = Iv::try_from(&buf[l-L_IV..]).expect("something wrong with IV in image in remote");
 		let message = my_decrypt(&buf[..l-L_IV], &key, &iv).expect("my_decrypt failed in from_remote");
 		let message = String::from_utf8(message).expect("from_utf8 failed in from_remote");
-        println!("message: {:?}", &message);
-        match toml::from_str(&message) {
+        //println!("message: {:?}", &message);
+        match serde_json::from_str(&message) {
             Ok(image) => {return Ok(image)}
-            Err(e) => {println!("serialization from toml failed in from_remote. Error message: {:?}.", e); return Err(e.into())}
+            Err(e) => {println!("deserialization from json failed in from_remote. Error message: {:?}.", e); return Err(e.into())}
         }
 	}
 
@@ -250,17 +251,18 @@ impl Image {
 
 	/// save Image as toml in clear format to local folder
 	fn save_local(&self) -> Result<()>{
-		let toml = toml::to_string(&self)?;
+		let j = serde_json::to_string(&self)?;
 		let path: PathBuf = [FOLDER_SYNC, IMAGE_LOCAL].iter().collect();
 		let mut f = File::create(path)?;
-		f.write_all(toml.as_bytes())?;
+		f.write_all(j.as_bytes())?;
 		Ok(())
 	}
 	
 	/// save Image as toml in encrytped format to remote folder
 	fn save_remote(&self, gpath: &Path, key: &Key) -> Result<()> {
-		let toml = toml::to_string(&self)?;
-		let (mut cipher, iv) = my_encrypt(&toml.as_bytes(), key)?;
+		let j = serde_json::to_string(&self)?;
+        //println!("message: {:?}", j);
+		let (mut cipher, iv) = my_encrypt(&j.as_bytes(), key)?;
 		cipher.extend(&iv);
 		let mut path = PathBuf::from(&gpath);
 		path.push(IMAGE_REMOTE);
