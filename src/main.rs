@@ -37,42 +37,42 @@ commands:
 
 	// cd to localdir
 	match env::var("MYSYNCPATH") {
-		Ok(home) => env::set_current_dir(home)?,
+		Ok(home) => {env::set_current_dir(&home).expect(format!("cannot go to directory {:?}", &home).as_str())}
 		Err(e) => {
 			println!("could not read system variable MYSYNCPATH: {}", e);
 			println!("Did you export MYSYNCPATH? This is the path to the folder that you want to sync.");
 		}
 	}
 	
-	let config = Config::load(Path::new(".sync/config.toml"))?;
+	let config = Config::load(Path::new(".sync/config.toml")).expect("could not load config file");
 
-	let mut jambon = Jambon::start(config, &goal)?;
+	let mut jambon = Jambon::start(config, &goal).expect("Jambon::start in main() returned errer");
 
 	match goal {
 		Goal::BlindPush => {
 			let fnames = get_filenames(&PathBuf::from("."));
 			for fname in fnames {
 				println!("adding {:?}", &fname);
-				jambon.encrypt_save_add(&fname)?;
+				jambon.encrypt_save_add(&fname).expect("jambon.encrypt_save_add in main () returned error");
 			}
 		}
 		Goal::BlindPull => {
-			jambon.load_missing()?;
+			jambon.load_missing().expect("jambon.load_missing() in main() failed");
 
 		}
 		Goal::Update => {
 			let fnames = get_filenames(&PathBuf::from("."));
 			for fname in &fnames {
-				jambon.update(&fname)?;
+				jambon.update(&fname).expect("jambon.update() in main() returned error");
 			}
-			jambon.load_missing()?;
+			jambon.load_missing().expect("jambon.load_missing() in main() returned error");
 			let fnames = get_filenames(&PathBuf::from("."));
-			jambon.clean_image(&fnames)?;
+			jambon.clean_image(&fnames).expect("jambon.clean_image() in main() returned error");
 			
 		}
 	}
 
-	jambon.finish(&goal)?;
+	jambon.finish(&goal).expect("jamobn.finish() in main() returned error");
 
 	Ok(())
 }

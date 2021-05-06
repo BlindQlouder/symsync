@@ -13,5 +13,5 @@ rand_distr = "0.2.2"
 siphasher = "0.3.3"
 
 toml = "0.5.5"
-serde = { version = "1.0.103", features = ["derive"]}
+serde = { version = "1.0.125", features = ["derive"]}
 

@@ -123,7 +123,8 @@ impl Config {
 	/// # Ok::<(), Box<dyn std::error::Error>>(())
 	/// ```
 	pub fn load(fname: &Path) -> Result<Self> {
-		let mut f = File::open(&fname)?;
+		//let mut f = File::open(&fname)?;
+		let mut f = myopen(&fname)?;
 		let mut config_string = String::new();
 		f.read_to_string(&mut config_string)?;
 		let mut config: Config = toml::from_str(&config_string)?;
@@ -178,7 +179,7 @@ impl Image {
 	/// load Image from toml in clear format. 
 	fn from_local() -> Result<Self> {
 		let path: PathBuf = [FOLDER_SYNC, IMAGE_LOCAL].iter().collect();
-		let mut f = File::open(path)?;
+		let mut f = myopen(&path)?;
 		let mut string = String::new();
 		f.read_to_string(&mut string)?;
 		let image: Image = toml::from_str(&string)?;
@@ -188,15 +189,18 @@ impl Image {
 	fn from_remote(gpath: &Path, key: &Key) -> Result<Self> {
 		let mut path = PathBuf::from(gpath);
 		path.push(IMAGE_REMOTE);
-		let mut f = File::open(path)?;
+		let mut f = myopen(&path).expect("could not open image file in from_remote");
 		let mut buf = Vec::new();
-		f.read_to_end(&mut buf)?;
+		f.read_to_end(&mut buf).expect("could not read image in remote directory");
 		let l = buf.len();
-		let iv = Iv::try_from(&buf[l-L_IV..])?;
-		let message = my_decrypt(&buf[..l-L_IV], &key, &iv)?;
-		let message = String::from_utf8(message)?;
-		let image: Image = toml::from_str(&message)?;
-		Ok(image)
+		let iv = Iv::try_from(&buf[l-L_IV..]).expect("something wrong with IV in image in remote");
+		let message = my_decrypt(&buf[..l-L_IV], &key, &iv).expect("my_decrypt failed in from_remote");
+		let message = String::from_utf8(message).expect("from_utf8 failed in from_remote");
+        println!("message: {:?}", &message);
+        match toml::from_str(&message) {
+            Ok(image) => {return Ok(image)}
+            Err(e) => {println!("serialization from toml failed in from_remote. Error message: {:?}.", e); return Err(e.into())}
+        }
 	}
 
 	/// add a file to Image. This will calculate the hashed name and signature of the file. 
@@ -355,7 +359,8 @@ impl Jambon {
 			}
 			Goal::BlindPull => {
 				Jambon::gpull(&gpath, &config.command_pull)?;
-				image_r = Some(Image::from_remote(&gpath, &key)?);
+				image_r = Some(Image::from_remote(&gpath, &key).expect(
+                        format!("could not load image in {:?}", &gpath).as_str()));
 				let mut image = Image::new();
 				image.siphashkey = image_r.as_ref().unwrap().siphashkey.clone();
 				image_l = Some(image);
@@ -513,12 +518,16 @@ impl Jambon {
 			let fname_r = &fsystem_r[i].name;
 			if fnames_l.iter().find(|&fname| fname_r==fname.to_str().unwrap()).is_none() {
 				println!("load missing; action2 (decrypt, save, add) file {:?}", &fname_r);
-				Self::decrypt_save_add(
+				match Self::decrypt_save_add(
 					self.image_l.as_mut().unwrap(),
 					&fsystem_r[i],
 					&self.gpath,
 					&self.key,
-					&self.image_r.as_ref().unwrap().siphashkey)?;
+					&self.image_r.as_ref().unwrap().siphashkey) {
+                    
+                    Ok(_) => {}
+                    Err(e) => {println!("WARNING: Could not load file. Error message: {:?}! Coninuing.", e)}
+                }
                 self.did_something = true;
 			}
 		}
@@ -644,7 +653,7 @@ impl Jambon {
 		let home = env::current_dir()?;
 		if let Err(_e) = env::set_current_dir(&gpath) {
 			println!("creating dir {:?}", &gpath);
-			fs::create_dir(&gpath)?;
+			fs::create_dir_all(&gpath)?;
 		}
 		let command_pull = &command_pull.clone();
 		let mut command_iter = command_pull.splitn(2, ' ');
@@ -663,7 +672,7 @@ impl Jambon {
 		let home = env::current_dir()?;
 		if let Err(_e) = env::set_current_dir(&self.gpath) {
 			println!("creating dir {:?}", &self.gpath);
-			fs::create_dir(&self.gpath)?;
+			fs::create_dir_all(&self.gpath)?;
 		}
 		let command_push = &self.command_push.clone();
 		let mut command_iter = command_push.splitn(2, ' ');
@@ -712,25 +721,38 @@ pub fn get_filenames(dir: &PathBuf) -> Vec<PathBuf> {
 
 /// read a file and return its content
 fn readfile(fname: &Path)-> io::Result<Vec<u8>> {
-	let mut f = File::open(fname)?;
+	let mut f = myopen(fname)?;
 	let mut buffer = Vec::new();
-	f.read_to_end(&mut buffer)?;
-	Ok(buffer)
+	match f.read_to_end(&mut buffer){
+        Ok(_) => {Ok(buffer)}
+        Err(e) => {
+            println!("read_to_end in readfile failed");
+            Err(e)
+        }
+    }
 }
 
 /// write content to file
 fn writefile(fname: &Path, content: &[u8]) -> io::Result<()> {
-	let f = File::create(fname);
-	match f {
+	match File::create(fname) {
 		Ok(mut file) => {
-			file.write_all(&content)?;
+			match file.write_all(&content){
+                Ok(_) => {}
+                Err(e) => {println!("file.write_all failed in writefile. Error message: {:?}", e); return Err(e)}
 			}
+        }
 		Err(_e) => {
 			let folder = fname.parent().expect("error in writefile trying to get parent of fname");
-			fs::create_dir(&folder)?;
-			writefile(&fname, &content)?;
-			}
+			match fs::create_dir_all(&folder){
+                Ok(_) => {}
+                Err(e) => {println!("create_dir_all failed for folder {:?} in writefile. Error message: {:?}", &folder, e); return Err(e)}
+            }
+			match writefile(&fname, &content){
+                Ok(_) => {}
+                Err(e) => {println!("writefile failed in writefile. Error message: {:?}", e); return Err(e)}
+            }
 		}
+    }
 	Ok(())
 }
 
@@ -823,6 +845,20 @@ fn check_signature(signature: &str, message: &Vec<u8>, siphashkey: &(u64, u64)) 
 }
 
 
+pub fn myopen(fname: &Path) -> io::Result<File> {
+	let r = File::open(&fname);
+    match r {
+        Ok(f) => {return Ok(f)}
+        Err(e) => {
+            println!("error opening file {:?}", &fname);
+            return Err(e);
+        }
+    }
+}
+
+
+
+
 // convert array of numbers to hexadecimal string. 
 // fn slice_to_hex<T: fmt::LowerHex>(a: &[T]) -> String {
 // 	let mut s = String::new();
@@ -865,6 +901,15 @@ mod tests {
 
     #[test]
     fn append_string_to_path(){
+        let p = Path::new("test.txt");
+        let mut p_copy = OsString::from(p);
+        p_copy.push("_backup");
+        assert_eq!(p_copy, OsString::from("test.txt_backup"));
+        //assert_eq!(p_copy.push(OsStr::new("x")), OsStr::new("test.txtx"));
+    }
+    
+    #[test]
+    fn test1(){
         let p = Path::new("test.txt");
         let mut p_copy = OsString::from(p);
         p_copy.push("_backup");
