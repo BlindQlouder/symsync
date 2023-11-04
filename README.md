@@ -41,7 +41,6 @@ add `export MYSYNCPATH=path_to_folder_local` to your .bashrc or similar
 compile: 
 
 ~~~~bash
-cd $repo
 cargo build --release 
 ~~~~
 
