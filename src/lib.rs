@@ -658,12 +658,13 @@ impl Jambon {
 			fs::create_dir_all(&gpath)?;
 		}
 		let command_pull = &command_pull.clone();
-		let mut command_iter = command_pull.splitn(2, ' ');
-		let mut args = "".to_string();
-		let prog = command_iter.next().unwrap().to_string();
-		if let Some(i) = command_iter.next() {args = i.to_string()}
+        let command_iter = command_pull.split_whitespace();
+        let mut args = Vec::new();
+        for i in command_iter {
+            args.push(i);
+        }
 		//println!("executing command {:?}...", &command_pull);
-		let mut command = Command::new(prog).arg(args).spawn()?;
+		let mut command = Command::new(args[0]).args(&args[1..]).spawn()?;
 		command.wait()?;
 		env::set_current_dir(home)?;
 		Ok(())
@@ -677,12 +678,13 @@ impl Jambon {
 			fs::create_dir_all(&self.gpath)?;
 		}
 		let command_push = &self.command_push.clone();
-		let mut command_iter = command_push.splitn(2, ' ');
-		let mut args = "".to_string();
-		let prog = command_iter.next().unwrap().to_string();
-		if let Some(i) = command_iter.next() {args = i.to_string()}
-		//println!("executing command {:?}...", &command_push);
-		let mut command = Command::new(prog).arg(args).spawn()?;
+        let command_iter = command_push.split_whitespace();
+        let mut args = Vec::new();
+        for i in command_iter {
+            args.push(i);
+        }
+		//println!("executing command {:?}...", &command_pull);
+		let mut command = Command::new(args[0]).args(&args[1..]).spawn()?;
 		command.wait()?;
 		env::set_current_dir(home)?;
 		Ok(())
